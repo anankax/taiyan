@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>邰言邰语 · 生成器</title>
+<meta name="description" content="同事之间图一乐。点一下，让邰主任开口说两句。">
+<!-- 不主动给搜索引擎收录，拿到链接的人照常能开 -->
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --paper:#efe8d9;
+    --card:#fffdf7;
+    --ink:#2b2b28;
+    --ink-light:#6f6a60;
+    --green:#1f6b4d;
+    --green-soft:#95ec69;
+    --seal:#b03a2e;
+    --line:#ddd4c0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,.55) 0, transparent 55%),
+      radial-gradient(circle at 80% 75%, rgba(255,255,255,.4) 0, transparent 50%),
+      repeating-linear-gradient(0deg, rgba(160,145,115,.055) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgba(160,145,115,.045) 0 1px, transparent 1px 5px);
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 60px;
+    display:flex;
+    justify-content:center;
+  }
+  .wrap{width:100%;max-width:760px;}
+
+  /* ---------- 抬头 ---------- */
+  header{display:flex;align-items:flex-start;gap:14px;margin-bottom:6px;}
+  .seal{
+    width:56px;height:56px;flex:0 0 56px;
+    background:var(--seal);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:32px;line-height:1;border-radius:6px;
+    box-shadow:0 3px 10px rgba(176,58,46,.28);
+    letter-spacing:0;padding-bottom:3px;
+  }
+  h1{
+    font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:38px;margin:0;letter-spacing:6px;font-weight:700;
+    line-height:1.1;
+  }
+  .sub{
+    font-size:12.5px;color:var(--ink-light);letter-spacing:1.2px;margin-top:4px;
+  }
+  .rule{
+    height:1px;background:linear-gradient(90deg,var(--line),transparent);
+    margin:16px 0 20px;
+  }
+
+  /* ---------- 通用卡片 ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:0 2px 14px rgba(90,75,45,.07);
+  }
+
+  /* ---------- 聊天区 ---------- */
+  .stage{
+    padding:20px 16px 8px;
+    min-height:180px;
+    max-height:56vh;
+    overflow-y:auto;
+    scroll-behavior:smooth;
+  }
+  .stage::-webkit-scrollbar{width:6px;}
+  .stage::-webkit-scrollbar-thumb{background:#cfc5ae;border-radius:3px;}
+
+  .empty{
+    text-align:center;color:#a89f8d;font-size:13.5px;
+    padding:52px 20px;line-height:2.1;
+  }
+  .empty b{
+    display:block;font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:22px;color:#b8ae99;letter-spacing:3px;font-weight:400;margin-bottom:6px;
+  }
+
+  .row{display:flex;margin-bottom:16px;animation:pop .34s cubic-bezier(.2,.9,.35,1.1) both;}
+  .row.me{justify-content:flex-end;}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
+
+  .who{
+    font-size:11.5px;color:#9a917e;margin-bottom:5px;letter-spacing:.6px;
+  }
+  .row.me .who{text-align:right;}
+  .blk{max-width:82%;}
+  .bubble{
+    position:relative;
+    padding:13px 16px;
+    border-radius:10px;
+    font-size:15.5px;
+    line-height:1.95;
+    letter-spacing:.4px;
+    word-break:break-word;
+    white-space:pre-wrap;
+  }
+  .other .bubble{
+    background:#fff;border:1px solid #e6e0d2;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:16px;
+  }
+  .me .bubble{
+    background:var(--green-soft);
+    border:1px solid #86dd59;
+    box-shadow:0 1px 3px rgba(60,120,40,.1);
+  }
+  .me .bubble::after{
+    content:"";position:absolute;right:-6px;top:14px;
+    width:0;height:0;border:6px solid transparent;
+    border-left-color:#86dd59;border-right:0;
+  }
+  .other .bubble::after{
+    content:"";position:absolute;left:-7px;top:14px;
+    width:0;height:0;border:6px solid transparent;
+    border-right-color:#fff;border-left:0;
+  }
+  .tagline{
+    font-size:11.5px;color:#a59b87;margin-top:8px;letter-spacing:.6px;
+    line-height:1.9;word-break:break-word;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+  }
+  .row.me .tagline{text-align:right;}
+
+  .caret{
+    display:inline-block;width:2px;height:1em;background:var(--green);
+    vertical-align:-2px;animation:blink .8s step-end infinite;
+  }
+  @keyframes blink{50%{opacity:0;}}
+
+  /* ---------- 控制区 ---------- */
+  .panel{padding:16px;margin-top:16px;}
+  .field{margin-bottom:13px;}
+  .lab{
+    font-size:12px;color:var(--ink-light);letter-spacing:1.5px;
+    margin-bottom:7px;display:flex;align-items:center;gap:6px;
+  }
+  .lab::before{content:"";width:3px;height:12px;background:var(--green);border-radius:2px;}
+  input[type=text],textarea{
+    width:100%;padding:10px 12px;
+    border:1px solid var(--line);border-radius:8px;
+    background:#fdfbf5;font-size:14.5px;
+    font-family:inherit;color:var(--ink);
+    transition:border-color .15s, box-shadow .15s;
+    resize:none;outline:none;
+  }
+  input[type=text]:focus,textarea:focus{
+    border-color:var(--green);box-shadow:0 0 0 3px rgba(31,107,77,.1);
+  }
+  textarea{height:62px;line-height:1.7;}
+  input::placeholder,textarea::placeholder{color:#bdb4a2;}
+
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fdfbf5;}
+  .seg button{
+    flex:1;padding:9px 0;border:0;background:transparent;cursor:pointer;
+    font-family:inherit;font-size:13.5px;color:var(--ink-light);
+    letter-spacing:1.5px;transition:.15s;
+  }
+  .seg button+button{border-left:1px solid var(--line);}
+  .seg button.on{background:var(--green);color:#fff;}
+  .seg button:not(.on):hover{background:#f2ede0;}
+
+  .go{
+    width:100%;padding:15px;margin-top:4px;
+    border:0;border-radius:10px;cursor:pointer;
+    background:var(--green);color:#fff;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:20px;letter-spacing:5px;
+    box-shadow:0 4px 14px rgba(31,107,77,.26);
+    transition:transform .12s, box-shadow .12s, opacity .2s;
+  }
+  .go:hover{transform:translateY(-1px);box-shadow:0 7px 20px rgba(31,107,77,.3);}
+  .go:active{transform:translateY(1px) scale(.995);}
+  .go:disabled{opacity:.55;cursor:default;transform:none;box-shadow:none;}
+
+  .tools{display:flex;gap:10px;margin-top:11px;}
+  .tools button{
+    flex:1;padding:10px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line);background:#fdfbf5;
+    font-family:inherit;font-size:13.5px;color:var(--ink-light);
+    letter-spacing:1.5px;transition:.15s;
+  }
+  .tools button:hover{border-color:var(--green);color:var(--green);background:#f6faf7;}
+
+  /* 开关 */
+  .switch{
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+    font-size:12.5px;color:var(--ink-light);letter-spacing:.8px;user-select:none;
+    padding:9px 0 2px;
+  }
+  .switch input{display:none;}
+  .track{
+    width:36px;height:20px;border-radius:10px;background:#ddd4c0;
+    position:relative;transition:.2s;flex:0 0 36px;
+  }
+  .track::after{
+    content:"";position:absolute;top:2px;left:2px;
+    width:16px;height:16px;border-radius:50%;background:#fff;
+    transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2);
+  }
+  .switch input:checked + .track{background:var(--green);}
+  .switch input:checked + .track::after{transform:translateX(16px);}
+
+  /* ---------- 历史 ---------- */
+  .hist{margin-top:16px;padding:14px 16px;}
+  .hist h3{
+    font-size:12px;color:var(--ink-light);letter-spacing:1.5px;
+    margin:0 0 10px;font-weight:400;display:flex;align-items:center;gap:6px;
+  }
+  .hist h3::before{content:"";width:3px;height:12px;background:var(--seal);border-radius:2px;}
+  .hitem{
+    padding:9px 11px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:#5e584d;line-height:1.75;margin-bottom:6px;
+    background:#faf7ef;border:1px solid transparent;
+    /* 预览只露两行：文字在 JS 里先截断，这里再用高度硬兜一道 */
+    overflow:hidden;max-height:64px;
+    transition:.15s;
+  }
+  .hitem:hover{background:#f3efe2;border-color:var(--line);}
+  .hnone{font-size:12.5px;color:#b3aa98;}
+
+  /* ---------- 口味表 ---------- */
+  details.recipe{margin-top:16px;padding:0 16px;}
+  details.recipe summary{
+    cursor:pointer;list-style:none;padding:13px 0;
+    font-size:13px;color:var(--ink-light);letter-spacing:1.5px;
+    display:flex;align-items:center;gap:8px;
+  }
+  details.recipe summary::-webkit-details-marker{display:none;}
+  details.recipe summary::before{
+    content:"▸";transition:.2s;color:var(--green);font-size:11px;
+  }
+  details.recipe[open] summary::before{transform:rotate(90deg);}
+  .recipe-body{
+    font-size:13px;line-height:2.05;color:#5e584d;
+    padding:2px 0 16px;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+    font-size:14.5px;
+  }
+  .recipe-body b{color:var(--green);font-weight:700;}
+  .recipe-body .step{
+    display:block;padding:7px 0 7px 14px;
+    border-left:2px solid #e3dbc8;margin-bottom:2px;
+  }
+  .recipe-body .step i{
+    font-style:normal;color:var(--seal);font-family:inherit;
+    display:block;font-size:13px;letter-spacing:1px;
+  }
+
+  .foot{
+    text-align:center;font-size:12px;color:#a89f8d;line-height:2;
+    margin:26px 0 0;letter-spacing:1px;
+    font-family:"KaiTi","STKaiti","楷体",serif;
+  }
+  .foot span{opacity:.75;}
+
+  .toast{
+    position:fixed;left:50%;bottom:34px;transform:translate(-50%,14px);
+    background:rgba(43,43,40,.92);color:#fff;
+    padding:10px 22px;border-radius:22px;font-size:13.5px;letter-spacing:1px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:99;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0);}
+
+  @media (max-width:520px){
+    body{padding:20px 10px 50px;}
+    h1{font-size:31px;letter-spacing:4px;}
+    .seal{width:48px;height:48px;flex-basis:48px;font-size:27px;}
+    .blk{max-width:88%;}
+    .bubble{font-size:15px;}
+    .other .bubble{font-size:15.5px;}
+    .stage{max-height:50vh;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="seal">邰</div>
+    <div>
+      <h1>邰言邰语</h1>
+      <div class="sub">TAI-SPEAK GENERATOR ／ 一句话，回到那个农村学校的下午</div>
+    </div>
+  </header>
+  <div class="rule"></div>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <div class="empty">
+        <b>还 没 有 说 话</b>
+        下面点一下，让邰主任开口
+      </div>
+    </div>
+  </div>
+
+  <div class="card panel">
+    <div class="field">
+      <div class="lab">对方是谁</div>
+      <input type="text" id="who" placeholder="周校长" value="周校长">
+    </div>
+
+    <div class="field">
+      <div class="lab">对方说了什么（可不填）</div>
+      <textarea id="said" placeholder="粘贴对方的话，自动判断该用哪种语气接。例：[强][强][玫瑰][玫瑰]用心、精细、实效"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="lab">篇幅</div>
+      <div class="seg" id="segLen">
+        <button data-v="short">短 · 两句</button>
+        <button data-v="mid" class="on">中 · 一段</button>
+        <button data-v="long">长 · 全文</button>
+      </div>
+    </div>
+
+    <button class="go" id="go">来 一 段 邰 言 邰 语</button>
+
+    <div class="tools">
+      <button id="copy">复制这段</button>
+      <button id="clear">清空对话</button>
+    </div>
+
+    <label class="switch">
+      <input type="checkbox" id="peek" checked>
+      <span class="track"></span>
+      显示语气解析（每句是干嘛的）
+    </label>
+  </div>
+
+  <div class="card hist">
+    <h3>生成记录 · 点一下复制</h3>
+    <div id="hist"><div class="hnone">还没有记录</div></div>
+  </div>
+
+  <details class="recipe card" style="padding:0 16px;">
+    <summary>邰语配方 · 七味药材</summary>
+    <div class="recipe-body">
+      <span class="step"><i>① 称呼简写</i>周校长 → <b>周校</b>；李主任 → <b>李主任</b>。同事之间，姓加一个字就够了。</span>
+      <span class="step"><i>② 自贬承接</i>先接住对方的夸奖，再把自己压低：<b>我也是自己瞎琢磨琢磨</b>、我这也是班门弄斧、谈不上经验。</span>
+      <span class="step"><i>③ 遥想当年</i>整段的发动机。四个字一起，时间就拉回去了：<b>遥想当年，自己在农村学校</b>，也很想有人带领，给我支支招的。</span>
+      <span class="step"><i>④ 如今对比</i>用「如今」接「遥想当年」，把自己从受助者变成施助者：<b>能尽自己的一点微薄之力</b>，给新教师们一点方向。</span>
+      <span class="step"><i>⑤ 感恩组织</i>荣誉不往自己身上落，往上面推：<b>很荣幸，感谢校长室给我锻炼的机会</b>。</span>
+      <span class="step"><i>⑥ 平视互助</i>身段放平，四字格连用：<b>和年轻人相互学习，取长补短</b>。</span>
+      <span class="step"><i>⑦ 情绪直白收尾</i>不绕弯子，就一句心事：<b>我很开心</b>、我心里暖暖的、这就值了。</span>
+    </div>
+  </details>
+
+  <p class="foot">
+    同事之间图一乐，请勿外传。<span>如有冒犯，我这就赔个不是。</span>
+  </p>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   邰言邰语 · 语料库
+   ========================================================= */
+
+const CALL = {   // 称呼简写规则
+  map: [
+    [/校长$/, "校"], [/主任$/, "主任"], [/书记$/, "书记"],
+    [/老师$/, "老师"], [/园长$/, "园长"], [/科长$/, "科长"],
+    [/处长$/, "处长"], [/局$/, "局"], [/院长$/, "院长"]
+  ]
+};
+
+/* 开场：承接对方的话，按对方语气分四种 */
+const OPEN = {
+  praise: [
+    "你太抬举我了。",
+    "您真是过奖了，我也是自己瞎琢磨琢磨。",
+    "谢谢您的鼓励，我这也是赶鸭子上架。",
+    "哪有什么好经验，我就是把走过的路数了数。"
+  ],
+  question: [
+    "这个问题问得好，说明你是真在琢磨事儿。",
+    "你问到点子上了，这个我也摸索了好一阵子。",
+    "这个问题我当年也卡过。",
+    "你能想到这一层，已经很不容易了。"
+  ],
+  business: [
+    "好的，事情我来跟。",
+    "收到，我马上安排。",
+    "行，这个我心里有数了。",
+    "没问题，交给我就是。"
+  ],
+  general: [
+    "谢谢谢谢。",
+    "说句掏心窝子的话。",
+    "承蒙大家信任。",
+    "客气了客气了。"
+  ]
+};
+
+/* 遥想当年：追忆自己的处境 */
+const MEMORY = [
+  "遥想当年，自己在农村学校，也很想有人带领，给我支支招的。",
+  "遥想当年，我刚参加工作那会儿，一间屋子一张桌，什么都得自己摸。",
+  "想当年，我一个人带一个班，白天上课晚上备课，也没人教过我。",
+  "遥想当年，那时候在农村学校，条件简陋，想找个人问问都难。",
+  "我年轻的时候，也是两眼一抹黑，就盼着有哪位老教师能拉我一把。",
+  "遥想当年，我在村小教书，一支粉笔一本书，教案都是照着别人的抄。",
+  "刚参加工作那几年，我走了不少弯路，也没少挨批评。",
+  "遥想当年，我连课怎么开个头都不知道，站在讲台上腿肚子打颤。"
+];
+
+/* 遥想当年的接续句：不再重复"遥想当年"四个字，读着像往下说 */
+const MEMORY2 = [
+  "那时候教案不会写，就照着老教师的抄，抄着抄着自己才摸出点门道。",
+  "刚上班那阵子也怕上公开课，一站到讲台上，手心全是汗。",
+  "那时候带一个班，白天上课晚上备课，也没人教过我。",
+  "条件简陋归简陋，可心里那股劲是足的。",
+  "走了不少弯路，也没少挨批评。",
+  "那时候最盼的，就是有人肯听我说说课，给我提上两句。",
+  "年轻嘛，脸皮薄，有问题也不敢问，就自己闷着头琢磨。",
+  "后来慢慢才明白，教学这件事，急不来。"
+];
+
+/* 如今：把当年的受助，变成今天的施助 */
+const NOW = [
+  "如今，能尽自己的一点微薄之力，给新教师们一点方向。",
+  "如今有这个平台，我就把自己踩过的坑说给大家听一听。",
+  "现在能把自己走过的弯路讲一讲，希望大家少走一点。",
+  "如今能给你们递上一两句真心话，我也就知足了。",
+  "现在我年纪大了一点，就想着把这点体会往外倒一倒。",
+  "如今带一带年轻人，也算把当年欠下的那份心还上。"
+];
+
+/* 感恩：荣誉往上推 */
+const THANKS = [
+  "很荣幸，感谢校长室给我锻炼的机会。",
+  "承蒙学校信任，给我这样一个平台，谢谢。",
+  "感谢组织一直以来的关心，也感谢各位同事的帮衬。",
+  "这份机会来之不易，我心里是清楚的。",
+  "谢谢领导看得起我，我一定把这件事做实。"
+];
+
+/* 平视互助 */
+const MUTUAL = [
+  "和年轻人相互学习，取长补短，我很开心。",
+  "咱们互相学习，取长补短，一起把事做好。",
+  "和年轻人在一起，我自己也跟着年轻了。",
+  "有什么说得不到位的，还请各位多批评指正。",
+  "以后有什么需要，随时找我，我知无不言。",
+  "教学相长，学生进步的时候，也是我们自己长进的时候。",
+  "时间长了你们就晓得，我这个人是知无不言的。",
+  "沉下心来，一步一个脚印，教室里的事急不得。"
+];
+
+/* 收尾：情绪直白 */
+const END = [
+  "我很开心。",
+  "我心里暖暖的。",
+  "这就值了。",
+  "我特别高兴。",
+  "我很知足。",
+  "真的，我很开心。"
+];
+
+/* 微信表情点缀 */
+const EMO = ["[抱拳]", "[握手]", "[玫瑰]", "[合十]", "[强][强]"];
+
+/* 每句的语气标签 */
+const TAG = {
+  open:"【承接对方】", memory:"【遥想当年】", now:"【如今对比】",
+  thanks:"【感恩组织】", mutual:"【平视互助】", end:"【情绪收尾】"
+};
+
+/* =========================================================
+   判定对方语气
+   ========================================================= */
+function judgeType(t){
+  if(!t || !t.trim()) return "general";
+  const s = t.trim();
+  if(/[?？]|请问|怎么|如何|咋|能不能|可不可以|求|请教|什么是/.test(s)) return "question";
+  if(/麻烦|请帮忙|通知|安排|辛苦你|要交|上交|材料|时间|几点|开会|准备一下|落实/.test(s)) return "business";
+  if(/\[强\]|\[玫瑰\]|\[赞\]|辛苦|谢谢|感谢|真好|很棒|不错|厉害|佩服|用心|精细|实效|做得好|优秀|值得/.test(s)) return "praise";
+  return "general";
+}
+
+/* 称呼简写：周校长 → 周校 */
+function shorten(raw){
+  let n = (raw||"").trim().replace(/[：:，,\s]+$/,"");
+  if(!n) return "各位老师";
+  for(const [re,tail] of CALL.map){
+    if(re.test(n)){
+      const head = n.replace(re,"");
+      if(head.length === 1) return head + (tail === "校" ? "校" : tail);
+      if(head.length === 2 && tail === "校") return head + "校";  // 周校长 → 周校
+    }
+  }
+  return n;
+}
+
+/* =========================================================
+   生成
+   ========================================================= */
+const pick = (arr, avoid) => {
+  if(arr.length === 1) return arr[0];
+  let v, n = 0;
+  do { v = arr[Math.floor(Math.random()*arr.length)]; n++; }
+  while(n < 12 && avoid && avoid.has(v));
+  avoid && avoid.add(v);
+  return v;
+};
+const used = new Set();
+const maybeEmo = p => Math.random() < p ? EMO[Math.floor(Math.random()*EMO.length)] : "";
+
+function generate(len, type, name, said){
+  const segs = [];
+  const call = shorten(name);
+  // 兜底：记满一轮就清空，既避开上一次刚说过的，也不会把库用死
+  if(used.size > 10) used.clear();
+
+  // ① 称呼 + 承接
+  let head = pick(OPEN[type], used);
+  // 表扬型：先应一声称呼，更贴身
+  if(type === "praise" && Math.random() < .7) head = call + "，" + head;
+  else if(Math.random() < .32) head = call + "，" + head;
+  // 事务型后面往往补一句解释
+  if(type === "business" && Math.random() < .55){
+    head += pick(["这两天我就把东西理出来。","我了解一下情况再回你。","先按这个思路走，有问题随时说。"], used);
+  }
+  segs.push({t:head, tag:TAG.open});
+
+  // ② 中间三段按篇幅取
+  if(len === "short"){
+    if(Math.random() < .5) segs.push({t:pick(MEMORY, used), tag:TAG.memory});
+  } else if(len === "mid"){
+    segs.push({t:pick(MEMORY, used), tag:TAG.memory});
+    if(Math.random() < .62) segs.push({t:pick(NOW, used), tag:TAG.now});
+    segs.push({t:pick(MUTUAL, used) + maybeEmo(.35), tag:TAG.mutual});
+  } else {
+    segs.push({t:pick(MEMORY, used), tag:TAG.memory});
+    if(Math.random() < .5) segs.push({t:pick(MEMORY2, used), tag:TAG.memory});
+    segs.push({t:pick(NOW, used), tag:TAG.now});
+    if(Math.random() < .8) segs.push({t:pick(THANKS, used), tag:TAG.thanks});
+    segs.push({t:pick(MUTUAL, used), tag:TAG.mutual});
+  }
+
+  // ③ 收尾
+  // "我很开心"这类话前面已经说过一遍就不再重复，换一句没露过面的
+  const core = x => x.replace(/。$/,"").replace(/^真的，/,"");
+  const priorTxt = segs.map(s => s.t).join("");
+  const fresh = END.filter(x => !priorTxt.includes(core(x)));
+  let end = pick(fresh.length ? fresh : END, used);
+  if(Math.random() < .3){
+    // 去掉原句的句号再接，免得出现"。，"这种粘连
+    const pre = pick(MUTUAL, used).replace(/[。！？]$/,"");
+    // 前半句里已经含了要收的那句话，就别叠着说
+    if(!pre.includes(core(end))) end = pre + "，" + end;
+  }
+  // 上一句刚贴过表情，这句就不再贴，免得连着两个
+  const lastTxt = segs[segs.length-1].t;
+  end += lastTxt.endsWith("]") ? "" : maybeEmo(.3);
+  segs.push({t:end, tag:TAG.end});
+
+  return segs;
+}
+
+const plain = segs => segs.map(s => s.t).join("");
+
+/* =========================================================
+   渲染
+   ========================================================= */
+const stage = document.getElementById("stage");
+const whoEl = document.getElementById("who");
+const saidEl = document.getElementById("said");
+const goBtn = document.getElementById("go");
+const peekEl = document.getElementById("peek");
+const histEl = document.getElementById("hist");
+const toastEl = document.getElementById("toast");
+
+let len = "mid";
+let busy = false;
+let saidText = "";
+const history = [];
+
+document.getElementById("segLen").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if(!b) return;
+  [...e.currentTarget.children].forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  len = b.dataset.v;
+});
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("on");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => toastEl.classList.remove("on"), 1500);
+}
+
+function clearEmpty(){
+  const e = stage.querySelector(".empty");
+  if(e) e.remove();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* 打字机：逐字吐出来。prefix 是这句话之前已经说过的内容，接在后面往下打 */
+async function typeIn(bubble, text, prefix){
+  prefix = prefix || "";
+  for(let i = 1; i <= text.length; i++){
+    bubble.innerHTML = escapeHtml(prefix + text.slice(0,i)) + '<span class="caret"></span>';
+    if(i % 2 === 0){
+      stage.scrollTop = stage.scrollHeight;
+      await sleep(9);
+    }
+  }
+  bubble.textContent = prefix + text;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+}
+
+async function run(){
+  if(busy) return;
+  busy = true;
+  goBtn.disabled = true;
+
+  const type = judgeType(saidText);
+  const call = shorten(whoEl.value);
+  const segs = generate(len, type, whoEl.value, saidText);
+
+  clearEmpty();
+
+  // 对方的话（如果填了）
+  if(saidText){
+    const row = document.createElement("div");
+    row.className = "row other";
+    row.innerHTML = '<div class="blk"><div class="who">' +
+      escapeHtml(call) + '</div><div class="bubble"></div></div>';
+    stage.appendChild(row);
+    await typeIn(row.querySelector(".bubble"), saidText);
+    await sleep(220);
+  }
+
+  // 邰主任的话
+  const row = document.createElement("div");
+  row.className = "row me";
+  row.innerHTML = '<div class="blk"><div class="who">邰主任</div>' +
+    '<div class="bubble"></div><div class="tagline"></div></div>';
+  stage.appendChild(row);
+
+  const bubble = row.querySelector(".bubble");
+  const tagline = row.querySelector(".tagline");
+  tagline.style.visibility = "hidden";
+
+  // 逐句接着往下打，攒成同一条消息
+  let acc = "";
+  for(const s of segs){
+    if(tagline.textContent) tagline.textContent += " ";
+    tagline.textContent += s.tag;
+    if(peekEl.checked) tagline.style.visibility = "visible";  // 说到哪句，标到哪句
+    await typeIn(bubble, s.t, acc);
+    acc += s.t;
+    await sleep(130);
+  }
+  tagline.style.visibility = peekEl.checked ? "visible" : "hidden";
+
+  // 存记录
+  const text = plain(segs);
+  history.unshift(text);
+  if(history.length > 6) history.pop();
+  renderHist();
+
+  busy = false;
+  goBtn.disabled = false;
+}
+
+function renderHist(){
+  if(!history.length){ histEl.innerHTML = '<div class="hnone">还没有记录</div>'; return; }
+  histEl.innerHTML = "";
+  history.forEach(t => {
+    const d = document.createElement("div");
+    d.className = "hitem";
+    d.textContent = t.length > 96 ? t.slice(0,96) + "……" : t;
+    d.title = "点击复制全文";
+    d.onclick = () => copyText(t);
+    histEl.appendChild(d);
+  });
+}
+
+goBtn.onclick = run;
+
+async function copyText(t){
+  try{
+    await navigator.clipboard.writeText(t);
+    toast("已复制，去群里发吧");
+  }catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = t; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+    toast("已复制，去群里发吧");
+  }
+}
+
+document.getElementById("copy").onclick = () => {
+  const rows = stage.querySelectorAll(".row.me .bubble");
+  if(!rows.length){ toast("先让邰主任说句话"); return; }
+  const t = [...rows].pop().textContent;
+  copyText(t);
+};
+
+document.getElementById("clear").onclick = () => {
+  stage.innerHTML = '<div class="empty"><b>还 没 有 说 话</b>下面点一下，让邰主任开口</div>';
+  toast("已清空");
+};
+
+peekEl.onchange = () => {
+  stage.querySelectorAll(".tagline").forEach(t => {
+    t.style.visibility = peekEl.checked ? "visible" : "hidden";
+  });
+};
+
+saidEl.addEventListener("input", () => { saidText = saidEl.value; });
+saidEl.addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); run(); }
+});
+
+// 空格 / N 键快捷再来一段
+document.addEventListener("keydown", e => {
+  if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if(e.code === "Space" || e.key === "n" || e.key === "N"){ e.preventDefault(); run(); }
+});
+</script>
+</body>
+</html>
