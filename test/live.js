@@ -44,9 +44,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     let id = 0;
     const pending = new Map();
+    const logs = [];
     ws.onmessage = e => {
       const d = JSON.parse(e.data);
-      if(d.id && pending.has(d.id)){ pending.get(d.id)(d.result); pending.delete(d.id); }
+      if(d.id && pending.has(d.id)){ pending.get(d.id)(d.result); pending.delete(d.id); return; }
+      /* 把页面里的 console 和未捕获的报错接出来。
+         不接的话，页面里一抛异常，外面只看到"按钮再没亮过"，
+         完全是黑盒——上一轮那个 200 秒空转就是这么来的。 */
+      if(d.method === "Runtime.consoleAPICalled"){
+        logs.push("[" + d.params.type + "] " +
+          (d.params.args || []).map(a => a.value ?? a.description ?? "").join(" "));
+      }
+      if(d.method === "Runtime.exceptionThrown"){
+        const ex = d.params.exceptionDetails || {};
+        logs.push("[异常] " + (ex.text || "") + " " +
+          ((ex.exception || {}).description || ""));
+      }
     };
     const send = (method, params) => new Promise(r => {
       const i = ++id; pending.set(i, r);
@@ -59,12 +72,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         (r.exceptionDetails.exception || {}).description);
       return r.result.value;
     };
+    await send("Runtime.enable", {});
 
-    // 等页面真的加载完
-    for(let i = 0; i < 20; i++){
-      if(await evalJS("!!document.getElementById('go')")) break;
+    /* 等页面**真的**加载完。
+       坑：#go 这个元素在 HTML 解析到就存在了，那时候页面底部的脚本
+       还没跑到"给按钮绑点击"那一行——这时候 click() 是点了个空，
+       按钮不会被禁用，bubble 也不会出现，看上去就像页面卡死了。
+       所以要等 readyState 走完，再稳一拍。 */
+    for(let i = 0; i < 40; i++){
+      if(await evalJS("document.readyState === 'complete' && !!document.getElementById('go')")) break;
       await sleep(500);
     }
+    await sleep(800);
 
     const run = said => evalJS(`(async () => {
       const set = (el, v) => { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); };
@@ -76,7 +95,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       document.getElementById("go").click();
       while((document.getElementById("go").disabled ||
              document.querySelectorAll(".row.me .bubble").length === old)
-            && Date.now() - t0 < 200000) await new Promise(r => setTimeout(r, 200));
+            && Date.now() - t0 < 260000) await new Promise(r => setTimeout(r, 200));
       const bs = document.querySelectorAll(".row.me .bubble");
       const tg = document.querySelector(".row.me .tagline");
       return JSON.stringify({ secs: ((Date.now() - t0) / 1000).toFixed(1),
@@ -96,6 +115,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     console.log(good === 2
       ? "✔ 两条都走了模型 —— 线上真实源 + 真实 CORS 成立"
       : "✘ 有 " + (2 - good) + " 条退回了本地语料（看上面的标注）");
+    if(logs.length){
+      console.log("\n--- 页面里的动静 ---");
+      for(const l of logs.slice(-30)) console.log("  " + l);
+    }
     process.exitCode = good === 2 ? 0 : 1;
   } finally {
     chrome.kill();
