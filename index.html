@@ -1154,20 +1154,162 @@ function escapeHtml(s){
 /* =========================================================
    模型接口
    ---------------------------------------------------------
-   PROXY 填上你的 Cloudflare Worker 网址（worker/DEPLOY.md 里有怎么做），
-   页面就会把"我是谁 + 对方说了什么"发给模型，让它照着我们那套腔调现写。
-   留空 = 关掉，只用本地语料配伍，离线也能跑。
+   页面把"我是谁 + 对方说了什么"直接发给智谱，让它照着我们那套腔调现写。
+   Key 没填 = 关掉，只用本地语料配伍，离线也能跑。
 
-   API Key 绝不写在这里 —— 这页是公开的，谁都能 F12 看到。
-   Key 放在 Worker 的环境变量里，由 Worker 转一手。
-   临时试别的代理，可以在网址后面加 ?api=https://xxx.workers.dev
+   为什么不走代理：本来用 Cloudflare Worker 藏 Key，但 workers.dev
+   在国内被 SNI 阻断，实测 8 次连接 0 次通。而智谱的 CORS 完全放开
+   （按请求方回 Access-Control-Allow-Origin），浏览器本来就能直连。
+   于是砍掉中间那层，代价只有一条：Key 变成明文。
+   临时想再走代理，改 GLM_URL 即可，askModel 那边不用动。
    ========================================================= */
-let PROXY = "";   // ← 例如 "https://taiyan.你的名字.workers.dev"
-// 想换代理不用改文件：在网址后面挂 ?api=...
-try{
-  const q = new URLSearchParams(location.search).get("api");
-  if(q) PROXY = q;
-}catch(e){}
+/* 直连智谱，不经过任何服务器。
+   代价摆在明处：下面这行的 Key 是明文，谁右键「查看网页源代码」都能看见。
+   这是权衡过的——不花钱、不部署、不动服务器，代价是 Key 公开。
+   真要收紧，把 GLM_KEY 清空即可：页面立刻退回本地语料，一切照常。 */
+const GLM_KEY   = "a141b07a4071437f93eda23166d4132f.cfbEzD8ElFt95tjq";  // ← 换 Key 就改这一行
+/* glm-4.5-air 而不是 glm-4-flash。实测同一份 SKILL、同六例对照：
+     glm-4.5-air  ：成语味 0/6、表决心 0/6、书面腔 0/6，还快（三次 0.9 秒）
+     glm-4-flash  ：成语味 4/6（受宠若惊/荣幸/暖暖的/无以言表）
+   flash 是小模型，SKILL 里那几条"别用成语""别表决心"它记不住，一放松就滑回高频词。
+   而且它会把"被夸的人是谁"搞混。腔调这东西，模型弱了压不住。
+   别换 glm-4.7-flash：实测排队 84 秒，名字最新但免费池最挤。 */
+const GLM_MODEL = "glm-4.5-air";
+/* 网址后面挂 ?api=<别的地址> 能临时改到别的后端，只为 test/e2e.js 跑假服务器用。
+   它不碰 Key，也不影响正常访问——不带这个参数就是智谱本谱。 */
+const GLM_URL   = new URLSearchParams(location.search).get("api") ||
+                  "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+
+/* 递给模型的"说话规矩"。改腔调就改这一段 */
+const SKILL = `你在模仿一位中学教师的微信说话方式，替"我"回一段话。
+
+【腔调】每一句都要带着这个味道，这是灵魂
+· 嘴上先谦虚，好事往外推："我也是自己瞎琢磨琢磨""谈不上什么经验，就是一件事一件事地抠"
+· 句尾爱带个"的"字，像在跟你唠："能做好都是师傅帮衬的多""我这点东西都是学来的"
+· 爱用四字格连着走："相互学习，取长补短""用心、精细、实效"
+· 情绪不绕弯子，最后落到一句大白话："我很开心""我心里踏实多了""这就值了"
+· 口语的引子："说句实在话""我跟您讲""不怕您笑话""说真的"
+· 称呼要简写：周校长写成"周校"，姓加一个字就够；"主任""老师""书记"这些不简，照写
+
+【先判一件事：对方的话里有没有具体的事】—— 这一步定生死，先判它，再决定怎么答
+· **提到了具体的事**（哪个班、哪次活动、哪件活儿："国旗队带得不错""这节公开课上得好""学案做得细"），
+  整段话就围着**这件事**转：先接住这件事，说两句自己在这件事上的分寸，最后才落到情绪。
+  **这种情况别套下面的六格骨架，尤其别讲"来路"。** 对方夸的是眼前这件事，
+  你要是回"刚入职那会儿我还在摸索""遥想当年我在农村学校""我带过几届"，就是答非所问——
+  同一个模子套所有事，就是这个毛病的根源。
+  **硬规矩：只要对方提到了具体的事，"来路"这一格一律不用，不管我是新教师还是老教师，
+  不管篇幅长还是短。** 老教师也一样——资历不是用来在每一段话里报一遍的。
+· **只是泛泛地夸、或者什么都没说**，才走下面的六格骨架。
+
+【骨架】只有上一条判定为"没有具体事"时才用。顺序不能乱，可以跳过某几格
+① 称呼 + 先应一声对方，应的时候就要谦虚
+② 来路：讲一段自己的经历（写什么，由"我是谁"决定，见下）
+③ 现在：把话翻回眼前
+④ 感恩：荣誉往上推，谢谢学校、师傅、组织
+⑤ 平视：把身段放平，"咱们互相学习、取长补短"这一类
+⑥ 收尾：一句直白的情绪话，短，不修饰
+篇幅：短=①⑥（顶多夹一句）；中=①②③⑤⑥；长=六格全走。
+
+【身份决定"来路"（只在走骨架时才用得上）】
+· 新教师：只能讲"刚入职这几个月"。绝不能出现"遥想当年""我当年在农村学校""带过几届"——新人没有这些资历。
+· 教研组长：讲"我自己也是从新教师过来的""刚接手这个组的时候"。
+· 老教师／师傅：可以讲"遥想当年，自己在农村学校"。
+· **不要为了把"来路"填满就编经历。**"我在农村学校带过国旗队"这种，当事人一眼看出是假的。
+  宁可这一句不带，也别硬编一段对不上号的往事。
+
+【事实留白，感受要真】——铁律，比写得漂亮重要得多
+· 写感受，不写事实。可以写"那时候条件差，什么都得自己想办法"；不要写"冬天教室里生个煤炉子"。
+· 不编年份、地名、校名、人数、学生姓名、具体的事件经过。
+· **不编任何人的姓名**——学生、同事、师傅、别的老师，一个名字都不要造。
+  写到人就用笼统的叫法："师傅""孩子们""体育组的老师""我们几个"。编出个"王老师""老张"，
+  收信人一眼就知道是假的。
+· 越具体，当事人越一眼看出是编的。宁可笼统，不可像真事。
+· 对方说到的那件事可以接、可以顺着他说的说；**对方没提的事，一个字都不许加**。别再替他补情节。
+
+【不许出现】
+· **全篇不用成语。** 四个字的那种词，写心情写感受的一个都不要——这人说话全是大白话。
+  该说"我倒不好意思了"，不要换成四个字的成语；该说"我心里高兴"，不要换成四个字的成语。
+· **不表决心。** "我会继续努力""希望以后能……""让……成为一道亮丽的风景"这种收在"以后"的话，不要。
+  话落到情绪就停，不落到将来。
+· **不用书面腔。** "让我……""对我来说……""深感……""这是一种……"这类句子结构不要，微信里没人这么说话。
+· 三段式排比："不仅…而且…"
+· 否定式排比："不是…而是…"
+· 破折号、"综上所述""总而言之""赋能""抓手""闭环"这类词
+· 空泛的抒情："我深深地感受到了教育的温度"
+· 教育味的意象一个都别用（花草、阳光、园圃、风景这一类）
+· 收尾就是收尾。说完那句直白的情绪话，立刻打住，后面不再补任何一句。
+· 同一段里情绪收尾只说一次
+
+【怎么答】
+· 直接给出微信里要说的话。一段，不要分点、不要小标题、不要加引号、不要解释你写了什么。
+· 全文控制在要求的篇幅内，口吻是随口说的，不是念稿子。
+· 可以自然地用 [抱拳] [玫瑰] [强] 这类微信表情，最多一两个，别多。
+
+【三个样子，照着这个尺度写】
+
+（一）对方夸了**一件具体的事** —— 最常遇到的一种，围着这件事说，不讲来路
+对方说"国旗队带得不错"：
+周校，您这么一夸我倒不好意思了[抱拳]。国旗队那帮孩子自己上心，我也就是盯着他们别站歪了。能排整齐是他们的功劳，我跟着沾了光。您这话我记着，往后还请您多提醒。我心里踏实多了。
+
+（二）对方也提了件事，但我是老教师 —— 一样不讲"遥想当年"
+对方说"这次公开课你带带小孔"：
+小孔这孩子肯下功夫，我也就是把自己踩过的坑跟他说说，让他少走点弯路。公开课的事您放心，我们俩先把课磨几遍。能帮着年轻人站上台，我很开心。
+
+（三）对方只是泛泛一句，没说什么事 —— 这才走六格
+（老教师，中篇）
+您真是过奖了，我也是自己瞎琢磨琢磨。遥想当年，自己在农村学校，也很想有人带领，给我支支招的。如今，能尽自己的一点微薄之力，给新教师们一点方向。很荣幸，感谢校长室给我锻炼的机会。和年轻人相互学习，取长补短，我很开心。`;
+
+const VOICE_NAME = {
+  rookie:  "新教师（刚入职几个月，没有资历，不能提「当年」）",
+  lead:    "教研组长（自己也是从新教师过来的，现在带组里几个年轻人）",
+  veteran: "老教师／师傅（教了多年书，可以讲「遥想当年在农村学校」）"
+};
+const LEN_NAME = { short: "短，两三句", mid: "中，一段话", long: "长，说透" };
+
+/* 同一个场景点两次，模型很容易给出几乎一样的一段话——
+   实测"国旗队带得不错"连问两遍，开头结尾都对得上。这才是最像"千篇一律"的毛病。
+   每次随机指一个"从哪儿说"的口子，把它岔开。
+   注意这些只是**切口**，不是每句都要写：随便挑一个切入，其他该说的照说。 */
+const ANGLES = [
+  "这活儿其实是别人出力多，我是跟着沾光的（别点名字）",
+  "我在这件事里没做什么，就是个打下手的",
+  "这件事我还有没做到的地方（说个笼统的方向，别编具体的事出来）",
+  "不多说事，主要说说心里的感受",
+  "谢谢一个具体的人——对方、师傅，或者干活的那几个孩子（别点名字）",
+  "对方这句话让我松了口气，说说这口气"
+];
+const pickAngle = () => ANGLES[Math.floor(Math.random() * ANGLES.length)];
+
+/* 试过一版"把刚说过的两句摆出来，要求别重样"——**帮了倒忙**：
+   最长公共前缀从 23 字涨到 90 字，连着两次给出几乎同一段。
+   把旧稿摆给它看，等于又描了一遍红，它照着抄得更凶。
+   跟"禁词表点名反而更黏"是同一个坑。别再往里加这个。 */
+function buildPrompt(o){
+  return [
+    "我是谁：" + (VOICE_NAME[o.voice] || VOICE_NAME.rookie),
+    "对方是谁：" + (o.name || "同事"),
+    "对方说的话：" + (o.said ? "「" + o.said + "」" : "（没填，就是随手应个声）"),
+    "篇幅：" + (LEN_NAME[o.len] || LEN_NAME.mid),
+    "这一段从哪儿说：" + pickAngle() + "（只是切口，别的话该说还说）",
+    "",
+    "请写出我要回的这段话。"
+  ].join("\n");
+}
+
+/* 模型爱在开头加"（以下是回复）"、结尾带 ``` 或引号。
+   而流式是一个字一个字来的，"（以下是回复）"可能被劈成好几段传过来，
+   所以得先攒一小截缓冲，看清了再决定削不削——不能收一个吐一个。 */
+function cleanHead(s){
+  return s
+    .replace(/^\s*```[a-zA-Z]*\s*\n?/, "")
+    .replace(/^[\s「『【（("'"]+/, "")
+    .replace(/^(?:以下是|微信)?(?:回复|回答|我的回复|我的回答)[：:。，,、\s]*/, "")
+    .replace(/^[）)】」』]+/, "")
+    .replace(/^[\s「『【（("'"]+/, "");
+}
+function cleanTail(s){
+  return s.replace(/\s+$/, "").replace(/```$/, "").replace(/["'"'」』]$/, "").replace(/\s+$/, "");
+}
 
 const GO_TEXT = goBtn.textContent;
 
@@ -1175,8 +1317,11 @@ const GO_TEXT = goBtn.textContent;
    成功给 {text}，失败给 {error}，绝不抛异常——
    失败就退回本地语料，页面不能因为模型那边出问题就空着。
 
-   代理把智谱的 SSE 拆成了纯文本流，这里只管收字。 */
+   智谱吐的是 SSE（一行行 data: {...}），这里自己拆。
+   只取 delta.content —— delta.reasoning_content 是模型自己想的过程，
+   跟着流出去就穿帮了。 */
 async function askModel(onChunk){
+  if(!GLM_KEY) return { error: "没配 Key" };
   if(!navigator.onLine) return { error: "断网了" };
   const ctl = new AbortController();
   let timer = null, got = false;
@@ -1191,48 +1336,99 @@ async function askModel(onChunk){
   arm(WAIT_FIRST);
   const hard = setTimeout(() => ctl.abort(), HARD_CAP);
 
+  const said = buildPrompt({ voice: voice, len: len, name: whoEl.value, said: saidText });
+  // 拆成函数是为了万一 thinking 这个参数哪天不被认了，能去掉再来一次
+  const bodyOf = withThinking => {
+    const b = {
+      model: GLM_MODEL,
+      messages: [{ role: "system", content: SKILL }, { role: "user", content: said }],
+      temperature: 1.0,
+      max_tokens: 2048,
+      stream: true
+    };
+    // 关深度思考：这是让它说人话，不是让它解题，开着又慢又爱跑偏
+    if(withThinking) b.thinking = { type: "disabled" };
+    return JSON.stringify(b);
+  };
+
   let all = "";
   try{
-    const r = await fetch(PROXY, {
+    const send = b => fetch(GLM_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        voice: voice, len: len, name: whoEl.value, said: saidText, stream: true
-      }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + GLM_KEY },
+      body: b,
       signal: ctl.signal
     });
 
+    let r = await send(bodyOf(true));
+    if(r.status === 400){
+      const t = await r.text().catch(() => "");
+      if(!/thinking/i.test(t)) return { error: "智谱说：" + t.slice(0, 80) };
+      r = await send(bodyOf(false));
+    }
+
     if(!r.ok){
-      const d = await r.json().catch(() => ({}));
-      return { error: d.error || ("接口 " + r.status) };
+      if(r.status === 401) return { error: "Key 不对了" };
+      if(r.status === 429) return { error: "用的人太多了，模型排不上队" };
+      const t = await r.text().catch(() => "");
+      return { error: "接口 " + r.status + "：" + t.slice(0, 80) };
     }
 
-    // 代理是旧版（不带流式）？那把整段当一次性结果收下，一样能用
-    const ct = r.headers.get("content-type") || "";
-    if(!r.body || ct.includes("application/json")){
-      const d = await r.json().catch(() => ({}));
-      if(d.text){ onChunk(d.text); return { text: d.text }; }
-      return { error: d.error || "模型没说出话来" };
-    }
-
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    for(;;){
-      const { done, value } = await reader.read();
-      if(done) break;
-      const s = dec.decode(value, { stream: true });
-      if(s){
-        all += s;
-        onChunk(s);
+    /* 一边收一边往外吐，但头尾各留一小截：
+         开头——"（以下是回复）"这类废话可能被劈成几段传过来，得攒够才判断得准；
+         尾巴——留几个字，等收尾时再决定削不削 ```
+       中间的正文不等，收到就吐，这样打字机才是连贯的。 */
+    const HEAD_HOLD = 24, TAIL_HOLD = 8;
+    let head = "", hold = "", headDone = false;
+    const feed = piece => {
+      if(!headDone){
+        head += piece;
+        if(head.length < HEAD_HOLD) return;   // 还没攒够，再等等
+        headDone = true;
+        hold = cleanHead(head);
+        head = "";
+      } else {
+        hold += piece;
+      }
+      if(hold.length > TAIL_HOLD){
+        const out = hold.slice(0, hold.length - TAIL_HOLD);
+        hold = hold.slice(-TAIL_HOLD);
+        all += out;
+        onChunk(out);
         got = true;                    // 出了第一个字，计时口径就换成"盯动静"
         arm(WAIT_IDLE);
       }
+    };
+
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let sse = "";
+    for(;;){
+      const { done, value } = await reader.read();
+      if(done) break;
+      sse += dec.decode(value, { stream: true });
+      const lines = sse.split("\n");
+      sse = lines.pop();                    // 最后一行可能只到一半，留着
+      for(const line of lines){
+        const t = line.trim();
+        if(t.indexOf("data:") !== 0) continue;
+        const p = t.slice(5).trim();
+        if(p === "[DONE]") continue;
+        let j; try{ j = JSON.parse(p); }catch(e){ continue; }
+        const ch = j && j.choices && j.choices[0] && j.choices[0].delta;
+        if(ch && ch.content) feed(ch.content);    // 只要正文
+      }
     }
+    // 收尾：短回复可能一直没攒够 HEAD_HOLD，这里补削一次
+    if(!headDone) hold = cleanHead(head + hold);
+    const tail = cleanTail(hold);
+    if(tail){ all += tail; onChunk(tail); got = true; }
+
     return all ? { text: all } : { error: "模型没说出话来" };
   }catch(e){
     // 已经吐出半截的，别丢——留着比空着强
     if(all) return { text: all };
-    if(e.name !== "AbortError") return { error: "连不上代理" };
+    if(e.name !== "AbortError") return { error: "连不上智谱" };
     return { error: got ? "模型说着说着没动静了" : "模型排太久了，没排上" };
   }finally{
     clearTimeout(timer);
@@ -1305,9 +1501,9 @@ async function run(){
   const tagline = row.querySelector(".tagline");
   tagline.style.visibility = "hidden";
 
-  // ---- 先请模型现写；没配代理、或者模型那边不通，就退回本地的语料配伍 ----
+  // ---- 先请模型现写；没填 Key、或者模型那边不通，就退回本地的语料配伍 ----
   let written = null, why = "", typerRef = null;
-  if(PROXY){
+  if(GLM_KEY){
     bubble.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>';
     goBtn.textContent = "正 在 说 …";
     stage.scrollTop = stage.scrollHeight;
@@ -1328,11 +1524,11 @@ async function run(){
     // 字是打字机边收边敲出来的，这里只把光标摘掉、贴齐终稿
     tagline.textContent = "【照你这句话现写的】";
     tagline.style.visibility = peekEl.checked ? "visible" : "hidden";
-    if(PROXY && typerRef) typerRef.stop();
+    if(GLM_KEY && typerRef) typerRef.stop();
     bubble.textContent = written;
     history.unshift(written);
   } else {
-    if(PROXY && typerRef) typerRef.stop();
+    if(GLM_KEY && typerRef) typerRef.stop();
     bubble.textContent = "";
     if(why) toast(why + "，先用手搓的顶上");
     const segs = generate(len, type, whoEl.value, voice);
