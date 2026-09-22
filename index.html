@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>邰言邰语 · 生成器</title>
-<meta name="description" content="同事之间图一乐。点一下，让邰主任开口说两句。">
+<meta name="description" content="同事之间图一乐。选好你是谁，点一下就能说两句。">
 <!-- 不主动给搜索引擎收录，拿到链接的人照常能开 -->
 <meta name="robots" content="noindex, nofollow">
 <style>
@@ -292,7 +292,7 @@
     <div class="seal">邰</div>
     <div>
       <h1>邰言邰语</h1>
-      <div class="sub">TAI-SPEAK GENERATOR ／ 一句话，回到那个农村学校的下午</div>
+      <div class="sub">TAI-SPEAK GENERATOR ／ <span id="subText">一句话，把刚入职这几个月说清楚</span></div>
     </div>
   </header>
   <div class="rule"></div>
@@ -301,12 +301,21 @@
     <div class="stage" id="stage">
       <div class="empty">
         <b>还 没 有 说 话</b>
-        下面点一下，让邰主任开口
+        下面点一下，开口说两句
       </div>
     </div>
   </div>
 
   <div class="card panel">
+    <div class="field">
+      <div class="lab">我是谁（决定"当年"那一格说什么）</div>
+      <div class="seg" id="segVoice">
+        <button data-v="rookie" class="on">新教师</button>
+        <button data-v="lead">教研组长</button>
+        <button data-v="veteran">老教师／师傅</button>
+      </div>
+    </div>
+
     <div class="field">
       <div class="lab">对方是谁</div>
       <input type="text" id="who" placeholder="周校长" value="周校长">
@@ -346,15 +355,20 @@
   </div>
 
   <details class="recipe card" style="padding:0 16px;">
-    <summary>邰语配方 · 七味药材</summary>
+    <summary>邰语配方 · 七味药材（其中两味按身份换）</summary>
     <div class="recipe-body">
+      这套话的味道是共通的：嘴上先谦虚、句尾爱带个「的」、四字格连用、情绪不绕弯子。<br>
+      但"我是谁"决定了第三、四味的用料——<b>老教师有"当年"，新教师没有</b>。让新教师去遥想农村学校，一眼就假。
       <span class="step"><i>① 称呼简写</i>周校长 → <b>周校</b>；李主任 → <b>李主任</b>。同事之间，姓加一个字就够了。</span>
-      <span class="step"><i>② 自贬承接</i>先接住对方的夸奖，再把自己压低：<b>我也是自己瞎琢磨琢磨</b>、我这也是班门弄斧、谈不上经验。</span>
-      <span class="step"><i>③ 遥想当年</i>整段的发动机。四个字一起，时间就拉回去了：<b>遥想当年，自己在农村学校</b>，也很想有人带领，给我支支招的。</span>
-      <span class="step"><i>④ 如今对比</i>用「如今」接「遥想当年」，把自己从受助者变成施助者：<b>能尽自己的一点微薄之力</b>，给新教师们一点方向。</span>
-      <span class="step"><i>⑤ 感恩组织</i>荣誉不往自己身上落，往上面推：<b>很荣幸，感谢校长室给我锻炼的机会</b>。</span>
-      <span class="step"><i>⑥ 平视互助</i>身段放平，四字格连用：<b>和年轻人相互学习，取长补短</b>。</span>
-      <span class="step"><i>⑦ 情绪直白收尾</i>不绕弯子，就一句心事：<b>我很开心</b>、我心里暖暖的、这就值了。</span>
+      <span class="step"><i>② 自贬承接</i>先接住对方的夸奖，再把自己压低：<b>您太抬举我了</b>、我也是自己瞎琢磨琢磨。</span>
+      <span class="step"><i>③ 来路</i>整段的发动机，也是唯一必须跟着身份走的一格：<br>
+        · 老教师 → <b>遥想当年，自己在农村学校</b>，也很想有人带领，给我支支招的。<br>
+        · 教研组长 → <b>我自己也是从新教师过来的</b>，知道那种心里没底的感觉。<br>
+        · 新教师 → <b>回想刚入职这几个月</b>，什么都不懂，教案写完了都不敢交。</span>
+      <span class="step"><i>④ 现在</i>把处境翻到眼前，受助者变施助者：老教师是<b>尽自己的一点微薄之力</b>，新教师是<b>有师傅带着，心里踏实多了</b>。</span>
+      <span class="step"><i>⑤ 感恩</i>荣誉不往自己身上落，往上面推：老教师<b>感谢校长室给我锻炼的机会</b>，新教师<b>感谢师傅手把手地教</b>。</span>
+      <span class="step"><i>⑥ 平视</i>身段放平，四字格连用：<b>相互学习，取长补短</b>。</span>
+      <span class="step"><i>⑦ 情绪直白收尾</i>不绕弯子，就一句心事：<b>我很开心</b>、心里踏实多了、这就值了。</span>
     </div>
   </details>
 
@@ -369,6 +383,11 @@
 <script>
 /* =========================================================
    邰言邰语 · 语料库
+   ---------------------------------------------------------
+   这套话的味道是共通的：谦虚、真诚、句尾带"的"、爱用四字格、
+   情绪不绕弯子。但"我是谁"决定了内容框架——
+   老教师有"当年"，新教师没有，新教师只有"刚入职这几个月"。
+   所以按身份分了三套语料，味道一样，来路不同。
    ========================================================= */
 
 const CALL = {   // 称呼简写规则
@@ -379,107 +398,296 @@ const CALL = {   // 称呼简写规则
   ]
 };
 
-/* 开场：承接对方的话，按对方语气分四种 */
-const OPEN = {
-  praise: [
-    "你太抬举我了。",
-    "您真是过奖了，我也是自己瞎琢磨琢磨。",
-    "谢谢您的鼓励，我这也是赶鸭子上架。",
-    "哪有什么好经验，我就是把走过的路数了数。"
-  ],
-  question: [
-    "这个问题问得好，说明你是真在琢磨事儿。",
-    "你问到点子上了，这个我也摸索了好一阵子。",
-    "这个问题我当年也卡过。",
-    "你能想到这一层，已经很不容易了。"
-  ],
-  business: [
-    "好的，事情我来跟。",
-    "收到，我马上安排。",
-    "行，这个我心里有数了。",
-    "没问题，交给我就是。"
-  ],
-  general: [
-    "谢谢谢谢。",
-    "说句掏心窝子的话。",
-    "承蒙大家信任。",
-    "客气了客气了。"
-  ]
-};
-
-/* 遥想当年：追忆自己的处境 */
-const MEMORY = [
-  "遥想当年，自己在农村学校，也很想有人带领，给我支支招的。",
-  "遥想当年，我刚参加工作那会儿，一间屋子一张桌，什么都得自己摸。",
-  "想当年，我一个人带一个班，白天上课晚上备课，也没人教过我。",
-  "遥想当年，那时候在农村学校，条件简陋，想找个人问问都难。",
-  "我年轻的时候，也是两眼一抹黑，就盼着有哪位老教师能拉我一把。",
-  "遥想当年，我在村小教书，一支粉笔一本书，教案都是照着别人的抄。",
-  "刚参加工作那几年，我走了不少弯路，也没少挨批评。",
-  "遥想当年，我连课怎么开个头都不知道，站在讲台上腿肚子打颤。"
-];
-
-/* 遥想当年的接续句：不再重复"遥想当年"四个字，读着像往下说 */
-const MEMORY2 = [
-  "那时候教案不会写，就照着老教师的抄，抄着抄着自己才摸出点门道。",
-  "刚上班那阵子也怕上公开课，一站到讲台上，手心全是汗。",
-  "那时候带一个班，白天上课晚上备课，也没人教过我。",
-  "条件简陋归简陋，可心里那股劲是足的。",
-  "走了不少弯路，也没少挨批评。",
-  "那时候最盼的，就是有人肯听我说说课，给我提上两句。",
-  "年轻嘛，脸皮薄，有问题也不敢问，就自己闷着头琢磨。",
-  "后来慢慢才明白，教学这件事，急不来。"
-];
-
-/* 如今：把当年的受助，变成今天的施助 */
-const NOW = [
-  "如今，能尽自己的一点微薄之力，给新教师们一点方向。",
-  "如今有这个平台，我就把自己踩过的坑说给大家听一听。",
-  "现在能把自己走过的弯路讲一讲，希望大家少走一点。",
-  "如今能给你们递上一两句真心话，我也就知足了。",
-  "现在我年纪大了一点，就想着把这点体会往外倒一倒。",
-  "如今带一带年轻人，也算把当年欠下的那份心还上。"
-];
-
-/* 感恩：荣誉往上推 */
-const THANKS = [
-  "很荣幸，感谢校长室给我锻炼的机会。",
-  "承蒙学校信任，给我这样一个平台，谢谢。",
-  "感谢组织一直以来的关心，也感谢各位同事的帮衬。",
-  "这份机会来之不易，我心里是清楚的。",
-  "谢谢领导看得起我，我一定把这件事做实。"
-];
-
-/* 平视互助 */
-const MUTUAL = [
-  "和年轻人相互学习，取长补短，我很开心。",
-  "咱们互相学习，取长补短，一起把事做好。",
-  "和年轻人在一起，我自己也跟着年轻了。",
-  "有什么说得不到位的，还请各位多批评指正。",
-  "以后有什么需要，随时找我，我知无不言。",
-  "教学相长，学生进步的时候，也是我们自己长进的时候。",
-  "时间长了你们就晓得，我这个人是知无不言的。",
-  "沉下心来，一步一个脚印，教室里的事急不得。"
-];
-
-/* 收尾：情绪直白 */
-const END = [
-  "我很开心。",
-  "我心里暖暖的。",
-  "这就值了。",
-  "我特别高兴。",
-  "我很知足。",
-  "真的，我很开心。"
-];
-
-/* 微信表情点缀 */
+/* 微信表情点缀（三种身份通用） */
 const EMO = ["[抱拳]", "[握手]", "[玫瑰]", "[合十]", "[强][强]"];
 
-/* 每句的语气标签 */
-const TAG = {
-  open:"【承接对方】", memory:"【遥想当年】", now:"【如今对比】",
-  thanks:"【感恩组织】", mutual:"【平视互助】", end:"【情绪收尾】"
+const VOICES = {
+
+  /* ---------------- 新教师（默认：用户本人） ---------------- */
+  rookie: {
+    label: "新教师",
+    subtitle: "一句话，把刚入职这几个月说清楚",
+    tag: {
+      open:"【承接对方】", memory:"【回想这几个月】", now:"【现在心里有数】",
+      thanks:"【感谢师傅】", mutual:"【向前辈学】", end:"【情绪收尾】"
+    },
+    filler: ["说实话，", "我跟您讲，", "不怕您笑话，", "真的，"],
+
+    open: {
+      praise: [
+        "谢谢您鼓励，我刚入职，很多东西还在学。",
+        "您太抬举我了，我这点东西都是师傅教出来的。",
+        "您这么一说我更有压力了，我得对得起这句话。",
+        "不敢当不敢当，我还有很多要补的。",
+        "谢谢组长，能做好都是师傅和同事们帮衬的多。",
+        "您这话我记下了，就当是给我指的方向。"
+      ],
+      question: [
+        "这个我也在摸索，我说说我的想法，不一定对。",
+        "我刚好碰到过这个问题，说说我的笨办法。",
+        "我经验浅，只能把我知道的说给你听。",
+        "这个问题我也想问呢，咱们一起找师傅问问。",
+        "我说说试试，说得不对你多包涵。"
+      ],
+      business: [
+        "好的，我马上去办。",
+        "收到，我记下来了。",
+        "行，我这就准备。",
+        "明白，有不清楚的我再问您。"
+      ],
+      general: [
+        "谢谢谢谢。",
+        "我说两句心里话。",
+        "谢谢大家给我这个机会。",
+        "刚来没多久，请各位多担待。"
+      ]
+    },
+
+    /* 新教师没有"当年"，只有刚入职这几个月 */
+    memory: [
+      "回想刚入职这几个月，什么都不懂，教案写完了都不敢交。",
+      "我刚站上讲台那会儿，一节课下来，衬衫都湿透了。",
+      "我第一天上课，讲到一半发现自己把话说反了，脸一直红到耳朵根。",
+      "刚来的时候，我连作业怎么批都不知道，就照着旁边老师的样学。",
+      "这几个月我犯的错不算少，好在有师傅兜着。",
+      "刚接班那阵子，我天天担心自己讲错，半夜还在翻教材。",
+      "我记得第一次听师傅评我的课，本子上记了满满两页。",
+      "开学那会儿，我连学生名字都认不全，一节课要点好几次名。"
+    ],
+    memory2: [
+      "那时候心里是真没底，一节课能备到夜里一两点。",
+      "有几次课上砸了，回来自己坐在办公室里半天没说话。",
+      "其实学生比我想象的宽容，是我自己太紧张了。",
+      "师傅跟我说，新老师头一年都是这么过来的。",
+      "那时候最盼的，就是有人肯听我说说课，给我提上两句。",
+      "教案本改了又改，有时候一节课要改到第三稿。",
+      "现在回头看看那几节课，我自己都觉得拿不出手。"
+    ],
+
+    // 开头故意错开：都拿"现在"起头的话，接在"现在回头看看"后面就叠了
+    now: [
+      "现在有师傅带着，一点一点教，我心里踏实多了。",
+      "现在慢慢摸着点门道了，可还是常常要问。",
+      "这几个月下来，总算敢在讲台上站直了。",
+      "备课比刚来的时候快多了，可底子还是薄。",
+      "心里是有点数了，可离上好一节课还差得远。",
+      "能把自己的笨办法说出来，也算是长进。"
+    ],
+
+    thanks: [
+      "感谢师傅手把手地教，我这点进步都是师傅给的。",
+      "感谢学校给我们新老师配了师傅，这份心意我记着。",
+      "谢谢组里的老师们，谁都没嫌我问题多。",
+      "承蒙组里照顾，我在这里一点不觉得孤单。",
+      "感谢领导给我锻炼的机会，我一定把课上好。",
+      "谢谢师傅，每次我上完课您都陪着我一句一句过。"
+    ],
+
+    mutual: [
+      "以后还要多向各位老教师请教，请多指点。",
+      "我会好好学，争取早点能独当一面。",
+      "咱们新老师之间也常交流，互通有无。",
+      "有什么做得不到位的，还请各位多批评指正。",
+      "我年纪轻，多干一点是应该的。",
+      "和学生一起成长，和老师们一起学习，我心里踏实。"
+    ],
+
+    end: [
+      "我很开心。", "我心里暖暖的。", "我很珍惜。", "心里踏实多了。",
+      "我记在心里了。", "我会好好干的。", "我觉得特别有奔头。", "真的，我很开心。"
+    ]
+  },
+
+  /* ---------------- 教研组长／备课组长 ---------------- */
+  lead: {
+    label: "教研组长",
+    subtitle: "一句话，把组里的事一句一句理顺",
+    tag: {
+      open:"【承接对方】", memory:"【我也是这么过来的】", now:"【把组里的事理顺】",
+      thanks:"【感谢信任】", mutual:"【带着大家一起做】", end:"【情绪收尾】"
+    },
+    filler: ["说句实在话，", "我跟您讲，", "真的，"],
+
+    open: {
+      praise: [
+        "您过奖了，是组里几个年轻人肯干。",
+        "谢谢领导，都是大家配合得好。",
+        "这话我不敢一个人领，成绩是大家一起做出来的。",
+        "谈不上什么经验，就是一件事一件事地抠。"
+      ],
+      question: [
+        "这个问题我们组也磨过，我把我们的做法说说。",
+        "你问得挺关键，这个当初我们也绕了一圈。",
+        "这个问题我建议你先听听课，我把我理解的说说。",
+        "问到点子上了，这个我们也是慢慢磨出来的。"
+      ],
+      business: [
+        "好的，我来协调。",
+        "收到，我排一下时间。",
+        "行，我跟组里几位老师对一下。",
+        "没问题，这两天给您准信。"
+      ],
+      general: [
+        "谢谢谢谢。",
+        "我说两句。",
+        "承蒙大家信任。",
+        "客气了客气了。"
+      ]
+    },
+
+    memory: [
+      "我自己也是从新教师过来的，知道那种心里没底的感觉。",
+      "刚接手这个组的时候，我也怕带不好，怕耽误了年轻人。",
+      "头一年当组长，我连磨课怎么组织都摸不着门道。",
+      "我带的第一届，比他们现在还慌，课备到半夜是常事。",
+      "那时候我们组就三个人，什么课都得一起上。",
+      "我当新老师那阵子，也没人教我，全靠自己撞。"
+    ],
+    memory2: [
+      "那时候组里也没个章法，就是谁有空谁上，硬顶过来的。",
+      "走了不少弯路，也听过不少难听的话。",
+      "后来才慢慢摸出来，磨课这件事得有个规矩。",
+      "那时候最怕的就是有人听课，一听课就手忙脚乱。",
+      "现在想想，那时候要是有个人指点一句，能省多少事。"
+    ],
+
+    now: [
+      "现在能带着几个年轻人一起磨课，我觉得这件事做得值。",
+      "现在把组里的事理顺一点，大家都能少费点劲。",
+      "能给年轻人搭个台子，我心里是高兴的。",
+      "把自己的教训讲给他们听，他们就能少绕一圈。"
+    ],
+
+    thanks: [
+      "感谢学校信任，把这个组交给我。",
+      "谢谢组里几位老师的配合，我一个人做不成事。",
+      "承蒙学校给平台，我才有机会把这件事做起来。",
+      "感谢领导一直支持，我们组才敢放开手做。"
+    ],
+
+    mutual: [
+      "组里的年轻人肯学，我也跟着有劲。",
+      "大家一起把课磨出来，比我一个人闷头做强。",
+      "有什么说得不到位的，还请各位多批评指正。",
+      "以后有什么需要，随时找我，我知无不言。",
+      "咱们组里的事，大家一起扛。",
+      "沉下心来，一步一个脚印，教室里的事急不得。"
+    ],
+
+    end: [
+      "我很开心。", "我心里有底了。", "这就值了。", "我特别高兴。",
+      "我很知足。", "真的，我很开心。"
+    ]
+  },
+
+  /* ---------------- 老教师／师傅（就是邰主任那种） ---------------- */
+  veteran: {
+    label: "老教师／师傅",
+    subtitle: "一句话，回到那个农村学校的下午",
+    tag: {
+      open:"【承接对方】", memory:"【遥想当年】", now:"【如今对比】",
+      thanks:"【感恩组织】", mutual:"【平视互助】", end:"【情绪收尾】"
+    },
+    filler: ["说句实在话，", "我跟你讲，", "真的，", "讲到这里我多说一句，"],
+
+    open: {
+      praise: [
+        "你太抬举我了。",
+        "您真是过奖了，我也是自己瞎琢磨琢磨。",
+        "谢谢您的鼓励，我这也是赶鸭子上架。",
+        "哪有什么好经验，我就是把走过的路数了数。",
+        "您这话说得我脸都红了，我哪有那么大的本事。",
+        "承蒙您看得起，其实我就是把该做的事做了。",
+        "受之有愧，我做的都是分内的事。"
+      ],
+      question: [
+        "这个问题问得好，说明你是真在琢磨事儿。",
+        "你问到点子上了，这个我也摸索了好一阵子。",
+        "这个问题我当年也卡过。",
+        "你能想到这一层，已经很不容易了。",
+        "这个问题不着急，我把我踩过的坑说给你听。",
+        "难为你想到这个，很多年轻人到现在还没往这儿想。"
+      ],
+      business: [
+        "好的，事情我来跟。",
+        "收到，我马上安排。",
+        "行，这个我心里有数了。",
+        "没问题，交给我就是。",
+        "先别急，我理一理再回你。"
+      ],
+      general: [
+        "谢谢谢谢。",
+        "说句掏心窝子的话。",
+        "承蒙大家信任。",
+        "客气了客气了。",
+        "我讲两句心里话。"
+      ]
+    },
+
+    memory: [
+      "遥想当年，自己在农村学校，也很想有人带领，给我支支招的。",
+      "遥想当年，我刚参加工作那会儿，一间屋子一张桌，什么都得自己摸。",
+      "想当年，我一个人带一个班，白天上课晚上备课，也没人教过我。",
+      "遥想当年，那时候在农村学校，条件简陋，想找个人问问都难。",
+      "我年轻的时候，也是两眼一抹黑，就盼着有哪位老教师能拉我一把。",
+      "遥想当年，我在村小教书，一支粉笔一本书，教案都是照着别人的抄。",
+      "刚参加工作那几年，我走了不少弯路，也没少挨批评。",
+      "遥想当年，我连课怎么开个头都不知道，站在讲台上腿肚子打颤。",
+      "零几年的时候，我在乡下教书，冬天教室里生个煤炉子，烟熏得眼睛睁不开。",
+      "那时候没有多媒体，一块黑板一支粉笔，一节课就这么讲下来。",
+      "遥想当年，我为了备一节课，能把教案本翻烂。",
+      "有一年带毕业班，我连着两个月没睡过一个整觉。"
+    ],
+    memory2: [
+      "那时候教案不会写，就照着老教师的抄，抄着抄着自己才摸出点门道。",
+      "刚上班那阵子也怕上公开课，一站到讲台上，手心全是汗。",
+      "那时候听老教师评课，我拿本子一句一句记，回来慢慢嚼。",
+      "条件简陋归简陋，可心里那股劲是足的。",
+      "走了不少弯路，也没少挨批评。",
+      "那时候最盼的，就是有人肯听我说说课，给我提上两句。",
+      "年轻嘛，脸皮薄，有问题也不敢问，就自己闷着头琢磨。",
+      "也没有谁手把手教，全靠自己一点一点试，试错了一届学生。",
+      "后来慢慢才明白，教学这件事，急不来。"
+    ],
+
+    now: [
+      "如今，能尽自己的一点微薄之力，给新教师们一点方向。",
+      "如今有这个平台，我就把自己踩过的坑说给大家听一听。",
+      "如今能给你们递上一两句真心话，我也就知足了。",
+      "现在能把自己走过的弯路讲一讲，希望大家少走一点。",
+      "我年纪大了一点，就想着把这点体会往外倒一倒。",
+      "带一带年轻人，也算把当年欠下的那份心还上。",
+      "我站在讲台上的时间不多了，就更想把这摊事交给你们。"
+    ],
+
+    thanks: [
+      "很荣幸，感谢校长室给我锻炼的机会。",
+      "承蒙学校信任，给我这样一个平台，谢谢。",
+      "感谢组织一直以来的关心，也感谢各位同事的帮衬。",
+      "这份机会来之不易，我心里是清楚的。",
+      "谢谢领导看得起我，我一定把这件事做实。",
+      "学校给了我这个位置，我就得对得起这份信任。"
+    ],
+
+    mutual: [
+      "和年轻人相互学习，取长补短，我很开心。",
+      "咱们互相学习，取长补短，一起把事做好。",
+      "和年轻人在一起，我自己也跟着年轻了。",
+      "有什么说得不到位的，还请各位多批评指正。",
+      "以后有什么需要，随时找我，我知无不言。",
+      "教学相长，学生进步的时候，也是我们自己长进的时候。",
+      "时间长了你们就晓得，我这个人是知无不言的。",
+      "沉下心来，一步一个脚印，教室里的事急不得。"
+    ],
+
+    end: [
+      "我很开心。", "我心里暖暖的。", "这就值了。", "我特别高兴。",
+      "我很知足。", "真的，我很开心。"
+    ]
+  }
 };
+
+const VOICE_KEYS = ["rookie", "lead", "veteran"];
 
 /* =========================================================
    判定对方语气
@@ -500,8 +708,8 @@ function shorten(raw){
   for(const [re,tail] of CALL.map){
     if(re.test(n)){
       const head = n.replace(re,"");
-      if(head.length === 1) return head + (tail === "校" ? "校" : tail);
-      if(head.length === 2 && tail === "校") return head + "校";  // 周校长 → 周校
+      if(head.length === 1) return head + tail;                    // 李主任 → 李主任
+      if(head.length === 2 && tail === "校") return head + "校";   // 周校长 → 周校
     }
   }
   return n;
@@ -510,65 +718,93 @@ function shorten(raw){
 /* =========================================================
    生成
    ========================================================= */
-const pick = (arr, avoid) => {
-  if(arr.length === 1) return arr[0];
-  let v, n = 0;
-  do { v = arr[Math.floor(Math.random()*arr.length)]; n++; }
-  while(n < 12 && avoid && avoid.has(v));
-  avoid && avoid.add(v);
-  return v;
-};
-const used = new Set();
 const maybeEmo = p => Math.random() < p ? EMO[Math.floor(Math.random()*EMO.length)] : "";
 
-function generate(len, type, name, said){
+/* 掐掉口头语，取开头的两个字：用来判断"这句是不是又用同一个词起头" */
+const head2 = s => s
+  .replace(/^(说句实在话|我跟你讲|我跟您讲|讲到这里我多说一句|说实话|不怕您笑话|真的)[，,]/,"")
+  .slice(0, 2);
+
+/* 每一格单独记着最近用过的几句，轮着来。
+   全局共用一个"用过的集合"是没用的——一轮就清空，同一句转眼又回来。
+   池子小的格记得少，池子大的记得多，免得把小池子用死。 */
+const recent = {};
+function pickFrom(slot, pool, prevTxt){
+  const hist = recent[slot] || (recent[slot] = []);
+  const ph = prevTxt ? head2(prevTxt) : "";
+  // 先保通顺：排掉跟上句同头的（"那时候…那时候…"），排空了才放开
+  let ok = pool.filter(x => head2(x) !== ph);
+  if(!ok.length) ok = pool.slice();
+  // 再在这堆里挑最近没说过的，保新鲜
+  //   顺序不能反：反了会先把不撞头的几句挑走，撞头过滤就没得选，只能撞上
+  const fresh = ok.filter(x => !hist.includes(x));
+  if(fresh.length) ok = fresh;
+  const v = ok[Math.floor(Math.random()*ok.length)];
+  hist.push(v);
+  const keep = Math.max(2, Math.min(4, pool.length - 2));
+  while(hist.length > keep) hist.shift();
+  return v;
+}
+
+function generate(len, type, name, voiceKey){
+  const vk = VOICES[voiceKey] ? voiceKey : "rookie";
+  const V = VOICES[vk];
+  const T = V.tag;
   const segs = [];
   const call = shorten(name);
-  // 兜底：记满一轮就清空，既避开上一次刚说过的，也不会把库用死
-  if(used.size > 10) used.clear();
+  const prev = () => segs[segs.length-1].t;
 
   // ① 称呼 + 承接
-  let head = pick(OPEN[type], used);
+  let head = pickFrom(vk+".open."+type, V.open[type]);
   // 表扬型：先应一声称呼，更贴身
   if(type === "praise" && Math.random() < .7) head = call + "，" + head;
   else if(Math.random() < .32) head = call + "，" + head;
   // 事务型后面往往补一句解释
   if(type === "business" && Math.random() < .55){
-    head += pick(["这两天我就把东西理出来。","我了解一下情况再回你。","先按这个思路走，有问题随时说。"], used);
+    head += pickFrom(vk+".biztail",
+      ["这两天我就把东西理出来。","我了解一下情况再回你。","先按这个思路走，有问题随时说。"]);
   }
-  segs.push({t:head, tag:TAG.open});
+  segs.push({t:head, tag:T.open});
 
-  // ② 中间三段按篇幅取
+  // ② 中间几段按篇幅取
+  //    "回想/遥想"那一句偶尔加个口头语打头，读着更像人在说话
+  let mem = pickFrom(vk+".memory", V.memory, prev());
+  if(Math.random() < .28) mem = pickFrom(vk+".filler", V.filler) + mem;
+  const mem2 = pickFrom(vk+".memory2", V.memory2, mem);
+
   if(len === "short"){
-    if(Math.random() < .5) segs.push({t:pick(MEMORY, used), tag:TAG.memory});
+    if(Math.random() < .5) segs.push({t:mem, tag:T.memory});
   } else if(len === "mid"){
-    segs.push({t:pick(MEMORY, used), tag:TAG.memory});
-    if(Math.random() < .62) segs.push({t:pick(NOW, used), tag:TAG.now});
-    segs.push({t:pick(MUTUAL, used) + maybeEmo(.35), tag:TAG.mutual});
+    segs.push({t:mem, tag:T.memory});
+    if(Math.random() < .62) segs.push({t:pickFrom(vk+".now", V.now, prev()), tag:T.now});
+    segs.push({t:pickFrom(vk+".mutual", V.mutual, prev()) + maybeEmo(.35), tag:T.mutual});
   } else {
-    segs.push({t:pick(MEMORY, used), tag:TAG.memory});
-    if(Math.random() < .5) segs.push({t:pick(MEMORY2, used), tag:TAG.memory});
-    segs.push({t:pick(NOW, used), tag:TAG.now});
-    if(Math.random() < .8) segs.push({t:pick(THANKS, used), tag:TAG.thanks});
-    segs.push({t:pick(MUTUAL, used), tag:TAG.mutual});
+    segs.push({t:mem, tag:T.memory});
+    if(Math.random() < .5) segs.push({t:mem2, tag:T.memory});
+    segs.push({t:pickFrom(vk+".now", V.now, prev()), tag:T.now});
+    if(Math.random() < .8) segs.push({t:pickFrom(vk+".thanks", V.thanks, prev()), tag:T.thanks});
+    segs.push({t:pickFrom(vk+".mutual", V.mutual, prev()), tag:T.mutual});
   }
 
   // ③ 收尾
   // "我很开心"这类话前面已经说过一遍就不再重复，换一句没露过面的
-  const core = x => x.replace(/。$/,"").replace(/^真的，/,"");
+  const core = x => x.replace(/。$/,"").replace(/^真的，/,"").replace(/^(说句实在话|我跟你讲|我跟您讲|讲到这里我多说一句|说实话|不怕您笑话)[，,]/,"");
   const priorTxt = segs.map(s => s.t).join("");
-  const fresh = END.filter(x => !priorTxt.includes(core(x)));
-  let end = pick(fresh.length ? fresh : END, used);
+  const pv = prev();
+  // 先排掉前文露过面的（取前四个字比，"心里踏实多了"撞"我心里踏实"整句比是比不出来的）
+  const key = x => { const c = core(x); return c.length >= 4 ? c.slice(0,4) : c; };
+  const fresh = V.end.filter(x => !priorTxt.includes(key(x)));
+  let end = pickFrom(vk+".end", fresh.length ? fresh : V.end, pv);
   if(Math.random() < .3){
     // 去掉原句的句号再接，免得出现"。，"这种粘连
-    const pre = pick(MUTUAL, used).replace(/[。！？]$/,"");
-    // 前半句里已经含了要收的那句话，就别叠着说
-    if(!pre.includes(core(end))) end = pre + "，" + end;
+    const pre = pickFrom(vk+".mutual", V.mutual, pv).replace(/[。！？]$/,"");
+    // 前半句里既不能含要收的那句话，也不能跟上句撞头
+    if(!pre.includes(core(end)) && head2(pre) !== head2(pv)) end = pre + "，" + end;
   }
   // 上一句刚贴过表情，这句就不再贴，免得连着两个
   const lastTxt = segs[segs.length-1].t;
   end += lastTxt.endsWith("]") ? "" : maybeEmo(.3);
-  segs.push({t:end, tag:TAG.end});
+  segs.push({t:end, tag:T.end});
 
   return segs;
 }
@@ -587,16 +823,26 @@ const histEl = document.getElementById("hist");
 const toastEl = document.getElementById("toast");
 
 let len = "mid";
+let voice = "rookie";
 let busy = false;
 let saidText = "";
 const history = [];
 
-document.getElementById("segLen").addEventListener("click", e => {
-  const b = e.target.closest("button");
-  if(!b) return;
-  [...e.currentTarget.children].forEach(x => x.classList.remove("on"));
-  b.classList.add("on");
-  len = b.dataset.v;
+/* 分段选择器：几个按钮里挑一个 */
+function bindSeg(id, onPick){
+  const el = document.getElementById(id);
+  el.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if(!b) return;
+    [...el.children].forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    onPick(b.dataset.v);
+  });
+}
+bindSeg("segLen", v => { len = v; });
+bindSeg("segVoice", v => {
+  voice = v;
+  document.getElementById("subText").textContent = VOICES[v].subtitle;
 });
 
 function toast(msg){
@@ -637,7 +883,7 @@ async function run(){
 
   const type = judgeType(saidText);
   const call = shorten(whoEl.value);
-  const segs = generate(len, type, whoEl.value, saidText);
+  const segs = generate(len, type, whoEl.value, voice);
 
   clearEmpty();
 
@@ -652,10 +898,11 @@ async function run(){
     await sleep(220);
   }
 
-  // 邰主任的话
+  // 我说的话（抬头跟着身份走）
   const row = document.createElement("div");
   row.className = "row me";
-  row.innerHTML = '<div class="blk"><div class="who">邰主任</div>' +
+  row.innerHTML = '<div class="blk"><div class="who">' +
+    escapeHtml(VOICES[voice].label) + '</div>' +
     '<div class="bubble"></div><div class="tagline"></div></div>';
   stage.appendChild(row);
 
@@ -714,13 +961,13 @@ async function copyText(t){
 
 document.getElementById("copy").onclick = () => {
   const rows = stage.querySelectorAll(".row.me .bubble");
-  if(!rows.length){ toast("先让邰主任说句话"); return; }
+  if(!rows.length){ toast("先说两句再复制"); return; }
   const t = [...rows].pop().textContent;
   copyText(t);
 };
 
 document.getElementById("clear").onclick = () => {
-  stage.innerHTML = '<div class="empty"><b>还 没 有 说 话</b>下面点一下，让邰主任开口</div>';
+  stage.innerHTML = '<div class="empty"><b>还 没 有 说 话</b>下面点一下，开口说两句</div>';
   toast("已清空");
 };
 
