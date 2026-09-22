@@ -9,7 +9,13 @@
    ========================================================= */
 
 const API = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-const MODEL = "glm-4.7-flash";
+/* 为什么是 glm-4-flash，不是看起来更新的 glm-4.7-flash：
+   实测过同一把 Key、同一张 SKILL、同样四例——
+     glm-4.7-flash：排队 84 秒，出字极慢（免费池人多）
+     glm-4-flash  ：2.7～12 秒，快得多，而且免费用不完
+   代价是它爱写抒情腔，所以下面 SKILL 的「不许出现」里
+   专门钉了它爱用的那几个词（都是它真写出来过的，不是猜的）。 */
+const MODEL = "glm-4-flash";
 
 /* 允许哪些网页来调这个代理。默认放行，靠下面的限流兜底 */
 const CORS = {
@@ -74,7 +80,10 @@ const SKILL = `你在模仿一位中学教师的微信说话方式，替"我"回
 · 否定式排比："不是…而是…"
 · 破折号、"综上所述""总而言之""赋能""抓手""闭环"这类词
 · 空泛的抒情："我深深地感受到了教育的温度"
-· 结尾再总结一遍、升华一遍
+· 教育味的意象一个都别用（花草、阳光、园圃这一类）
+· 说自己的心情别用成语，大白话一句就够："我心里高兴""我踏实多了"。不用成语，不夸张。
+· 收尾就是收尾。说完那句直白的情绪话，立刻打住，后面不再补任何一句。
+· 同一段里情绪收尾只说一次
 
 【怎么答】
 · 直接给出微信里要说的话。一段，不要分点、不要小标题、不要加引号、不要解释你写了什么。
@@ -117,7 +126,9 @@ function tidy(s){
   return t.replace(/\n{2,}/g, "\n").trim();
 }
 
-async function callGLM(key, prompt, withThinking){
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function callGLM(key, prompt, withThinking, stream){
   const body = {
     model: MODEL,
     messages: [{ role: "system", content: SKILL }, { role: "user", content: prompt }],
@@ -125,14 +136,46 @@ async function callGLM(key, prompt, withThinking){
     max_tokens: 2048
   };
   // 关闭深度思考：这是让模型说人话，不是让它解题，开着又慢又爱跑偏
+  //   查过文档：对 GLM-4.7 来说 enabled 是「强制思考」，必须显式关掉
   //   万一这个参数哪天不认了，下面会自动去掉重试一次
   if(withThinking) body.thinking = { type: "disabled" };
+  if(stream) body.stream = true;
 
   return fetch(API, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
     body: JSON.stringify(body)
   });
+}
+
+/* ---------------------------------------------------------
+   429 要重试。
+   实测过：免费模型排不上队时，智谱是**秒回** 429 的
+   （0.2 秒，码 1302/1305），不是等半天才说忙。
+   这种是并发槽位瞬时满，隔几秒再来一次多半就过了。
+   但得盯着表——一次正经调用本身就可能排 80 秒，
+   已经等久了就别再叠，不然浏览器那边先到点。
+   --------------------------------------------------------- */
+const RETRY_WAIT = [2000, 5000];
+const RETRY_BUDGET = 60000;      // 已经花掉这么多毫秒，就不再重试
+
+async function callGLMWithRetry(key, prompt, withThinking, stream){
+  const t0 = Date.now();
+  let r = await callGLM(key, prompt, withThinking, stream);
+  for(let i = 0; i < RETRY_WAIT.length; i++){
+    if(r.status !== 429) return r;
+    if(Date.now() - t0 > RETRY_BUDGET) return r;
+    // 429 的响应体还没读过，先留一份，重试完还不行得原样交回去
+    const kept = await r.text();
+    await sleep(RETRY_WAIT[i]);
+    const next = await callGLM(key, prompt, withThinking, stream);
+    if(next.status === 429 && i === RETRY_WAIT.length - 1){
+      // 重试用光了，把最后一次的原文还回去（原来的 body 已经被读掉了）
+      return new Response(kept, { status: 429 });
+    }
+    r = next;
+  }
+  return r;
 }
 
 export default {
@@ -156,18 +199,36 @@ export default {
       voice: o.voice, len: o.len, name: String(o.name || "").slice(0, 30) , said
     });
 
+    const want = !!o.stream;
+
     try{
-      let r = await callGLM(key, prompt, true);
+      let r = await callGLMWithRetry(key, prompt, true, want);
       // 参数不被认，去掉 thinking 再来一次
       if(r.status === 400){
         const t = await r.text();
-        if(/thinking/i.test(t)) r = await callGLM(key, prompt, false);
+        if(/thinking/i.test(t)) r = await callGLMWithRetry(key, prompt, false, want);
         else return json({ error: "智谱返回 400：" + t.slice(0, 200) }, 502);
       }
       if(!r.ok){
         const t = await r.text();
+        // 429 是"挤"，不是"坏"。换句话告诉用户，别让人以为网站塌了
+        if(r.status === 429) return json({ error: "用的人太多了，模型排不上队，过会儿再试" }, 502);
         return json({ error: "智谱返回 " + r.status + "：" + t.slice(0, 200) }, 502);
       }
+
+      // ---- 流式：把智谱的 SSE 拆开，只把正文一个字一个字转出去 ----
+      // 前端收到的是纯文本流，不用懂 SSE；思考过程也在这一层丢掉
+      if(want && r.body){
+        return new Response(sseToText(r), {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store",
+            ...CORS
+          }
+        });
+      }
+
+      // ---- 一次性：代理没被要求流式时走这条 ----
       const data = await r.json();
       const msg = data?.choices?.[0]?.message || {};
       // 只取 content。reasoning_content 是模型的思考过程，不能当回话发出去
@@ -179,6 +240,93 @@ export default {
     }
   }
 };
+
+/* ---------------------------------------------------------
+   智谱吐的是 SSE（一行行 data: {...}），浏览器直接看太啰嗦，
+   这里拆成纯文本再转出去。
+   两件顺手做掉的事：
+     · 只取 delta.content —— delta.reasoning_content 是模型的思考过程，
+       流出去就穿帮了
+     · 开头的"（以下是回复）"、末尾的 ``` 和引号，得攒一点缓冲才削得掉，
+       所以头尾各留一小截不急着发
+   --------------------------------------------------------- */
+const HEAD_HOLD = 24;   // 开头攒够这么多字，才判断得出有没有废话
+const TAIL_HOLD = 8;    // 尾巴留这么多，收尾时再决定削不削
+
+/* 削掉开头那些模型爱加的废话。
+   分成几步做，不要图省事写一个正则："（以下是回复）"这种，
+   一个正则里惰性匹配到"以下是"就收手了，"回复）"会剩下来。 */
+function cleanHead(s){
+  return s
+    .replace(/^\s*```[a-zA-Z]*\s*\n?/, "")            // 代码围栏
+    .replace(/^[\s「『【（("'"]+/, "")                 // 开头的引号或括号
+    .replace(/^(?:以下是|微信)?(?:回复|回答|我的回复|我的回答)[：:。，,、\s]*/, "")  // "回复："这类帽子
+    .replace(/^[）)】」』]+/, "")                      // 帽子外面那半个括号
+    .replace(/^[\s「『【（("'"]+/, "");               // 帽子里可能还套着一层引号
+}
+
+/* 削掉末尾的 ``` 和落单的引号 */
+function cleanTail(s){
+  return s.replace(/\s+$/, "").replace(/```$/, "").replace(/["'"'」』]$/, "").replace(/\s+$/, "");
+}
+
+function sseToText(glmRes){
+  const dec = new TextDecoder();
+  const enc = new TextEncoder();
+  const reader = glmRes.body.getReader();
+
+  return new ReadableStream({
+    async start(ctl){
+      let sse = "";          // SSE 的行缓冲
+      let head = "";         // 开头缓冲
+      let hold = "";         // 尾巴缓冲
+      let headDone = false;
+
+      const out = s => { if(s) ctl.enqueue(enc.encode(s)); };
+
+      const feed = piece => {
+        if(!headDone){
+          head += piece;
+          if(head.length < HEAD_HOLD) return;   // 还没攒够，再等等
+          headDone = true;
+          hold = cleanHead(head);
+          head = "";
+        } else {
+          hold += piece;
+        }
+        if(hold.length > TAIL_HOLD){
+          out(hold.slice(0, hold.length - TAIL_HOLD));
+          hold = hold.slice(-TAIL_HOLD);
+        }
+      };
+
+      try{
+        for(;;){
+          const { done, value } = await reader.read();
+          if(done) break;
+          sse += dec.decode(value, { stream: true });
+          const lines = sse.split("\n");
+          sse = lines.pop();                    // 最后一行可能只到一半，留着
+          for(const line of lines){
+            const t = line.trim();
+            if(!t.startsWith("data:")) continue;
+            const p = t.slice(5).trim();
+            if(p === "[DONE]") continue;
+            let j; try{ j = JSON.parse(p); }catch(e){ continue; }
+            const d = j?.choices?.[0]?.delta;
+            if(d && d.content) feed(d.content);  // 只要正文
+          }
+        }
+        // 收尾：短回复可能一直没攒够 HEAD_HOLD，这里补削一次
+        if(!headDone){ hold = cleanHead(head + hold); }
+        out(cleanTail(hold));
+        ctl.close();
+      }catch(e){
+        ctl.error(e);
+      }
+    }
+  });
+}
 
 function json(o, status){
   return new Response(JSON.stringify(o), {

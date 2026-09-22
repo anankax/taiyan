@@ -1171,30 +1171,105 @@ try{
 
 const GO_TEXT = goBtn.textContent;
 
-/* 请模型现写一段。成功给 {text}，失败给 {error}，绝不抛异常——
-   失败就退回本地语料，页面不能因为模型那边出问题就空着。 */
-async function askModel(){
+/* 请模型现写一段，边写边通过 onChunk 喂出来。
+   成功给 {text}，失败给 {error}，绝不抛异常——
+   失败就退回本地语料，页面不能因为模型那边出问题就空着。
+
+   代理把智谱的 SSE 拆成了纯文本流，这里只管收字。 */
+async function askModel(onChunk){
   if(!navigator.onLine) return { error: "断网了" };
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 25000);   // 模型慢起来是真慢
+  let timer = null, got = false;
+
+  /* 超时得分开看，一个数管不了这两段：
+       · 排队期——免费模型高峰期要排队，实测头一个字等了 81 秒。
+         这段没字是正常的，不能按"卡死了"处理，给足两分半。
+       · 出字之后——只盯"还有没有动静"，30 秒不吐新字才算真卡住。
+     全程再钉一个 4 分钟的硬顶，免得流不断、页面永远转圈。 */
+  const WAIT_FIRST = 150000, WAIT_IDLE = 30000, HARD_CAP = 240000;
+  const arm = ms => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), ms); };
+  arm(WAIT_FIRST);
+  const hard = setTimeout(() => ctl.abort(), HARD_CAP);
+
+  let all = "";
   try{
     const r = await fetch(PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        voice: voice, len: len, name: whoEl.value, said: saidText
+        voice: voice, len: len, name: whoEl.value, said: saidText, stream: true
       }),
       signal: ctl.signal
     });
-    const d = await r.json().catch(() => ({}));
-    if(!r.ok) return { error: d.error || ("接口 " + r.status) };
-    if(!d.text) return { error: "模型没说出话来" };
-    return { text: d.text };
+
+    if(!r.ok){
+      const d = await r.json().catch(() => ({}));
+      return { error: d.error || ("接口 " + r.status) };
+    }
+
+    // 代理是旧版（不带流式）？那把整段当一次性结果收下，一样能用
+    const ct = r.headers.get("content-type") || "";
+    if(!r.body || ct.includes("application/json")){
+      const d = await r.json().catch(() => ({}));
+      if(d.text){ onChunk(d.text); return { text: d.text }; }
+      return { error: d.error || "模型没说出话来" };
+    }
+
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    for(;;){
+      const { done, value } = await reader.read();
+      if(done) break;
+      const s = dec.decode(value, { stream: true });
+      if(s){
+        all += s;
+        onChunk(s);
+        got = true;                    // 出了第一个字，计时口径就换成"盯动静"
+        arm(WAIT_IDLE);
+      }
+    }
+    return all ? { text: all } : { error: "模型没说出话来" };
   }catch(e){
-    return { error: e.name === "AbortError" ? "模型想太久了" : "连不上代理" };
+    // 已经吐出半截的，别丢——留着比空着强
+    if(all) return { text: all };
+    if(e.name !== "AbortError") return { error: "连不上代理" };
+    return { error: got ? "模型说着说着没动静了" : "模型排太久了，没排上" };
   }finally{
     clearTimeout(timer);
+    clearTimeout(hard);
   }
+}
+
+/* 打字机：模型一小段一小段吐，这里一个字一个字敲出来。
+   攒得多就敲快点，免得模型一口气吐完了界面还得慢慢追。 */
+function typer(bubble){
+  let shown = "", queue = "", ended = false, timer = null;
+  const paint = () => {
+    bubble.innerHTML = escapeHtml(shown) +
+      (ended && !queue ? "" : '<span class="caret"></span>');
+    stage.scrollTop = stage.scrollHeight;
+  };
+  const tick = () => {
+    if(queue){
+      shown += queue.slice(0, queue.length > 120 ? 6 : queue.length > 40 ? 3 : 1);
+      queue = queue.slice(queue.length > 120 ? 6 : queue.length > 40 ? 3 : 1);
+      paint();
+    } else if(ended){
+      clearInterval(timer); timer = null;
+      paint();
+    }
+  };
+  timer = setInterval(tick, 16);
+  paint();
+  return {
+    push(s){ queue += s; },
+    end(){ ended = true; },
+    get done(){ return ended && !queue; },
+    get text(){ return shown; },
+    // 收工：停掉定时器。外面要直接改写 bubble 内容之前必须先叫一声，
+    // 否则下一次 tick 会把外面的改写覆盖回半截
+    stop(){ if(timer){ clearInterval(timer); timer = null; } }
+  };
 }
 
 async function run(){
@@ -1231,25 +1306,34 @@ async function run(){
   tagline.style.visibility = "hidden";
 
   // ---- 先请模型现写；没配代理、或者模型那边不通，就退回本地的语料配伍 ----
-  let written = null, why = "";
+  let written = null, why = "", typerRef = null;
   if(PROXY){
     bubble.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>';
-    goBtn.textContent = "正 在 想 …";
+    goBtn.textContent = "正 在 说 …";
     stage.scrollTop = stage.scrollHeight;
-    const r = await askModel();
+    const ty = typerRef = typer(bubble);
+    const r = await askModel(s => ty.push(s));
+    ty.end();
     goBtn.textContent = GO_TEXT;
     if(r.text) written = r.text;
     else { why = r.error || "模型没接上"; }
+    // 等打字机把剩下的敲完。加个上限，免得万一卡住就再也不往下走了
+    for(let i = 0; i < 500 && !ty.done; i++) await sleep(20);
+  } else {
+    bubble.textContent = "";
   }
-  bubble.textContent = "";
 
   if(written){
-    // 模型现写的是一整段，不再分句标功能
+    // 模型现写的是一整段，不再分句标功能。
+    // 字是打字机边收边敲出来的，这里只把光标摘掉、贴齐终稿
     tagline.textContent = "【照你这句话现写的】";
     tagline.style.visibility = peekEl.checked ? "visible" : "hidden";
-    await typeIn(bubble, written);
+    if(PROXY && typerRef) typerRef.stop();
+    bubble.textContent = written;
     history.unshift(written);
   } else {
+    if(PROXY && typerRef) typerRef.stop();
+    bubble.textContent = "";
     if(why) toast(why + "，先用手搓的顶上");
     const segs = generate(len, type, whoEl.value, voice);
     // 逐句接着往下打，攒成同一条消息
